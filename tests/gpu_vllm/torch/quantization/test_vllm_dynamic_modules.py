@@ -169,7 +169,9 @@ def test_fakequant_launcher_rejects_unusable_quant_file(monkeypatch, extra_args,
     ):
         monkeypatch.delenv(key, raising=False)
     launcher = _load_fakequant_launcher(monkeypatch)
-    monkeypatch.setattr(sys, "argv", ["vllm", "serve", "/models/qwen", *extra_args])
+    monkeypatch.setattr(
+        sys, "argv", ["vllm_serve_fakequant.py", "serve", "/models/qwen", *extra_args]
+    )
     with pytest.raises(SystemExit, match=error):
         launcher.main()
 
@@ -264,8 +266,8 @@ def test_vllm_serve_parser_dependency_error_propagates(monkeypatch):
 @pytest.mark.parametrize(
     "argv",
     [
-        pytest.param(["vllm", "launch", "render", "--help"], id="launch"),
-        pytest.param(["vllm", "--help"], id="top-level-help"),
+        pytest.param(["vllm_serve_fakequant.py", "launch", "render", "--help"], id="launch"),
+        pytest.param(["vllm_serve_fakequant.py", "--help"], id="top-level-help"),
     ],
 )
 def test_fakequant_launcher_passes_through_non_serve_commands(monkeypatch, quant_cfg, argv):
@@ -287,7 +289,7 @@ def test_fakequant_launcher_passes_through_non_serve_commands(monkeypatch, quant
 
     launcher.main()
 
-    assert sys.argv == argv
+    assert sys.argv == ["vllm", *argv[1:]]
     vllm_main.assert_called_once_with()
 
 
@@ -295,7 +297,7 @@ def test_fakequant_launcher_passes_through_non_serve_commands(monkeypatch, quant
     ("argv", "initial_env", "forwarded", "expected_env"),
     [
         pytest.param(
-            ["vllm", "serve", "/models/qwen", "--port", "8000"],
+            ["vllm_serve_fakequant.py", "serve", "/models/qwen", "--port", "8000"],
             {},
             ["serve", "/models/qwen", "--port", "8000"],
             {},
@@ -303,7 +305,7 @@ def test_fakequant_launcher_passes_through_non_serve_commands(monkeypatch, quant
         ),
         pytest.param(
             [
-                "vllm",
+                "vllm_serve_fakequant.py",
                 "serve",
                 "/models/qwen",
                 "--modelopt-quant-cfg",
@@ -322,14 +324,14 @@ def test_fakequant_launcher_passes_through_non_serve_commands(monkeypatch, quant
             id="cli-settings",
         ),
         pytest.param(
-            ["vllm", "serve", "/models/qwen"],
+            ["vllm_serve_fakequant.py", "serve", "/models/qwen"],
             {"QUANT_CFG": "NVFP4_DEFAULT_CFG", "VLLM_DISABLE_COMPILE_CACHE": "0"},
             ["serve", "/models/qwen"],
             {"QUANT_CFG": "NVFP4_DEFAULT_CFG"},
             id="environment-fallback",
         ),
         pytest.param(
-            ["vllm", "serve", "/models/qwen"],
+            ["vllm_serve_fakequant.py", "serve", "/models/qwen"],
             {"MODELOPT_STATE_PATH": "/tmp/modelopt_state.pth"},
             ["serve", "/models/qwen"],
             {"MODELOPT_STATE_PATH": "/tmp/modelopt_state.pth"},
@@ -340,7 +342,7 @@ def test_fakequant_launcher_passes_through_non_serve_commands(monkeypatch, quant
             {},
             ["serve", "/models/qwen"],
             {"QUANT_CFG": "FP8_DEFAULT_CFG"},
-            id="legacy-direct-script",
+            id="implicit-serve",
         ),
         pytest.param(
             [
@@ -354,7 +356,7 @@ def test_fakequant_launcher_passes_through_non_serve_commands(monkeypatch, quant
             {},
             ["serve", "--port", "8000", "/models/qwen"],
             {"QUANT_CFG": "FP8_DEFAULT_CFG"},
-            id="legacy-option-leading-direct-script",
+            id="option-leading-implicit-serve",
         ),
     ],
 )
@@ -412,7 +414,14 @@ def test_fakequant_launcher_preserves_explicit_worker_and_moe_overrides(
     monkeypatch.setattr(
         sys,
         "argv",
-        ["vllm", "serve", "/models/qwen", "--modelopt-quant-cfg", "FP8_DEFAULT_CFG", *overrides],
+        [
+            "vllm_serve_fakequant.py",
+            "serve",
+            "/models/qwen",
+            "--modelopt-quant-cfg",
+            "FP8_DEFAULT_CFG",
+            *overrides,
+        ],
     )
 
     launcher.main()
@@ -481,7 +490,7 @@ def test_fakequant_launcher_mlflow_uses_effective_cli_settings(
         sys,
         "argv",
         [
-            "vllm",
+            "vllm_serve_fakequant.py",
             "serve",
             "/models/qwen",
             "--mlflow",
@@ -524,7 +533,14 @@ def test_fakequant_launcher_restores_environment_after_cli_settings(
         monkeypatch.setattr(
             sys,
             "argv",
-            ["vllm", "serve", "/models/qwen", "--mlflow", "https://mlflow.example.com", *setting],
+            [
+                "vllm_serve_fakequant.py",
+                "serve",
+                "/models/qwen",
+                "--mlflow",
+                "https://mlflow.example.com",
+                *setting,
+            ],
         )
 
         launcher.main()
